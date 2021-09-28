@@ -1,145 +1,86 @@
-import { stat } from 'fs/promises';
 import path from 'path';
 import { readConfigFile, mergeConfig, locateConfigFile } from '@chialab/rna-config-loader';
+import { createTransformOptions, loadPlugins } from '@chialab/rna-bundler';
 import { createLogger, colors } from '@chialab/rna-logger';
+import { DevServer } from '@chialab/esbuild-plugin-dev-server';
 
-/**
- * @typedef {Object} DevServerCoreConfig
- * @property {import('@chialab/rna-logger').Logger} [logger]
- * @property {import('@chialab/rna-config-loader').Entrypoint[]} [entrypoints]
- * @property {string} [entrypointsPath]
- * @property {{ [key: string]: string|false }} [alias]
- * @property {import('esbuild').Plugin[]} [transformPlugins]
- * @property {string} [jsxFactory]
- * @property {string} [jsxFragment]
- * @property {string} [jsxModule]
- * @property {import('@chialab/rna-config-loader').ExportType} [jsxExport]
- */
+// /**
+//  * @param {DevServerConfig} config
+//  */
+// export async function buildPlugins(config) {
+//     const [
+//         { default: nodeResolvePlugin },
+//         { rnaPlugin, entrypointsPlugin },
+//     ] = await Promise.all([
+//         import('@chialab/wds-plugin-node-resolve'),
+//         import('@chialab/wds-plugin-rna'),
+//     ]);
 
-/**
- * @typedef {Partial<import('@web/dev-server-core').DevServerCoreConfig> & DevServerCoreConfig} DevServerConfig
- */
+//     return [
+//         rnaPlugin({
+//             alias: config.alias,
+//             jsxFactory: config.jsxFactory,
+//             jsxFragment: config.jsxFragment,
+//             jsxModule: config.jsxModule,
+//             jsxExport: config.jsxExport,
+//             transformPlugins: config.transformPlugins,
+//         }),
+//         entrypointsPlugin(config.entrypoints, config.entrypointsPath),
+//         nodeResolvePlugin({
+//             alias: config.alias,
+//         }),
+//     ];
+// }
 
-export async function buildMiddlewares() {
-    const [
-        { default: cors },
-        { default: range },
-    ] = await Promise.all([
-        import('@koa/cors'),
-        import('koa-range'),
-    ]);
+// export async function buildDevPlugins() {
+//     const [
+//         { hmrPlugin },
+//         { hmrCssPlugin },
+//         { watchPlugin },
+//     ] = await Promise.all([
+//         import('./plugins/hmr.js'),
+//         import('@chialab/wds-plugin-hmr-css'),
+//         import('./plugins/watch.js'),
+//     ]);
 
-    return [
-        cors(),
-        range,
-    ];
-}
-
-/**
- * @param {DevServerConfig} config
- */
-export async function buildPlugins(config) {
-    const [
-        { default: nodeResolvePlugin },
-        { rnaPlugin, entrypointsPlugin },
-    ] = await Promise.all([
-        import('@chialab/wds-plugin-node-resolve'),
-        import('@chialab/wds-plugin-rna'),
-    ]);
-
-    return [
-        rnaPlugin({
-            alias: config.alias,
-            jsxFactory: config.jsxFactory,
-            jsxFragment: config.jsxFragment,
-            jsxModule: config.jsxModule,
-            jsxExport: config.jsxExport,
-            transformPlugins: config.transformPlugins,
-        }),
-        entrypointsPlugin(config.entrypoints, config.entrypointsPath),
-        nodeResolvePlugin({
-            alias: config.alias,
-        }),
-    ];
-}
-
-export async function buildDevPlugins() {
-    const [
-        { hmrPlugin },
-        { hmrCssPlugin },
-        { watchPlugin },
-    ] = await Promise.all([
-        import('./plugins/hmr.js'),
-        import('@chialab/wds-plugin-hmr-css'),
-        import('./plugins/watch.js'),
-    ]);
-
-    return [
-        hmrPlugin(),
-        watchPlugin(),
-        hmrCssPlugin(),
-    ];
-}
+//     return [
+//         hmrPlugin(),
+//         watchPlugin(),
+//         hmrCssPlugin(),
+//     ];
+// }
 
 /**
  * Start the dev server.
- * @param {DevServerConfig} config
- * @return {Promise<import('@web/dev-server-core').DevServer>} The dev server instance.
+ * @param {import('@chialab/esbuild-plugin-dev-server').DevServerConfig} serveConfig
+ * @param {import('@chialab/rna-config-loader').Config} buildConfig
+ * @return {Promise<DevServer>} The dev server instance.
  */
-export async function createDevServer(config) {
-    const { DevServer } = await import('@web/dev-server-core');
-
-    const root = config.rootDir ? path.resolve(config.rootDir) : process.cwd();
-    const appIndex = path.join(root, 'index.html');
-    let index = false;
-    try {
-        index = (await stat(appIndex)).isFile();
-    } catch {
-        //
-    }
+export async function serve(serveConfig, buildConfig) {
+    const rootDir = serveConfig.rootDir ? path.resolve(serveConfig.rootDir) : process.cwd();
     const server = new DevServer({
-        appIndex: index ? appIndex : undefined,
-        ...config,
-        injectWebSocket: true,
-        hostname: config.hostname || 'localhost',
-        port: config.port || 8080,
-        rootDir: root,
-        middleware: [
-            ...(await buildMiddlewares()),
-            ...(config.middleware || []),
-        ],
-        plugins: [
-            ...(config.plugins || []),
-            ...(await buildPlugins(config)),
-            ...(await buildDevPlugins()),
-        ],
-    }, config.logger || createLogger());
+        ...serveConfig,
+        rootDir,
+    }, await createTransformOptions(buildConfig, [
+        ...(await loadPlugins({
+            postcss: {},
+        })),
+    ], [
+        await import('@chialab/esbuild-plugin-node-resolve')
+            .then(({ default: plugin }) => plugin()),
+    ]));
 
-    return server;
-}
-
-/**
- * Start the dev server.
- * @param {DevServerConfig} config
- * @return {Promise<import('@web/dev-server-core').DevServer>} The dev server instance.
- */
-export async function serve(config) {
-    const root = config.rootDir || process.cwd();
-    const server = await createDevServer({
-        ...config,
-        rootDir: root,
-    });
+    const logger = createLogger();
+    server.on('log',
+        /**
+         * @param {import('@chialab/esbuild-plugin-dev-server').DevServerLogEvent} event
+         */
+        ({ type, messages }) => {
+            logger[type](...messages);
+        }
+    );
 
     await server.start();
-
-    process.on('uncaughtException', error => {
-        config.logger?.error(error);
-    });
-
-    process.on('SIGINT', async () => {
-        await server.stop();
-        process.exit(0);
-    });
 
     return server;
 }
@@ -172,47 +113,41 @@ export function command(program) {
                 /**
                  * @type {import('@chialab/rna-config-loader').Config}
                  */
-                const config = mergeConfig({ root }, configFile ? await readConfigFile(configFile, { root }, 'serve') : {});
+                const buildConfig = mergeConfig({ root }, configFile ? await readConfigFile(configFile, { root }, 'serve') : {});
 
                 /**
-                 * @type {import('@web/dev-server-core').Plugin[]}
-                 */
-                const plugins = config.servePlugins || [];
-
-                /**
-                 * @type {DevServerConfig}
+                 * @type {import('@chialab/esbuild-plugin-dev-server').DevServerConfig}
                  */
                 const serveConfig = {
-                    rootDir: config.root,
+                    rootDir: buildConfig.root,
                     port,
-                    entrypointsPath: config.entrypointsPath,
-                    entrypoints: config.entrypoints,
-                    alias: config.alias,
-                    logger,
-                    plugins,
-                    jsxFactory: config.jsxFactory,
-                    jsxFragment: config.jsxFragment,
-                    jsxModule: config.jsxModule,
-                    jsxExport: config.jsxExport,
-                    transformPlugins: config.transformPlugins,
+                    // entrypointsPath: config.entrypointsPath,
+                    // entrypoints: config.entrypoints,
+                    // alias: config.alias,
+                    // plugins,
+                    // jsxFactory: config.jsxFactory,
+                    // jsxFragment: config.jsxFragment,
+                    // jsxModule: config.jsxModule,
+                    // jsxExport: config.jsxExport,
+                    // transformPlugins: config.transformPlugins,
                 };
 
-                try {
-                    const { legacyPlugin } = await import('@chialab/wds-plugin-legacy');
-                    plugins.push(legacyPlugin({
-                        minify: true,
-                    }));
-                } catch (err) {
-                    //
-                }
+                // try {
+                //     const { legacyPlugin } = await import('@chialab/wds-plugin-legacy');
+                //     plugins.push(legacyPlugin({
+                //         minify: true,
+                //     }));
+                // } catch (err) {
+                //     //
+                // }
 
-                const server = await serve(serveConfig);
+                const server = await serve(serveConfig, buildConfig);
 
                 logger.log(`
   ${colors.bold('rna dev server started')}
 
   root:     ${colors.blue.bold(path.resolve(serveConfig.rootDir || root))}
-  local:    ${colors.blue.bold(`http://${server.config.hostname}:${server.config.port}/`)}
+  local:    ${colors.blue.bold(`http://${server.host}:${server.port}/`)}
 `);
             }
         );

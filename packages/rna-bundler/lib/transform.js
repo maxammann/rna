@@ -6,41 +6,27 @@ import { transformLoaders } from './loaders.js';
  */
 
 /**
- * Build and bundle sources.
- * @param {import('@chialab/rna-config-loader').EntrypointFinalConfig} config
- * @return {Promise<TransformResult>} The esbuild bundle result.
+ * @param {import('@chialab/rna-config-loader').Config} config
+ * @param {import('esbuild').Plugin[]} extraPlugins
+ * @param {import('esbuild').Plugin[]} extraTransformPlugins
  */
-export async function transform(config) {
-    const { default: esbuild } = await import('esbuild');
-
+export async function createTransformOptions(config, extraPlugins = [], extraTransformPlugins = []) {
     const {
-        input,
-        code,
-        root,
-        loader,
+        root = process.cwd(),
         format,
         platform,
         target,
         sourcemap,
         minify,
-        globalName,
         define,
         jsxFactory,
         jsxFragment,
         jsxModule,
         jsxExport,
-        plugins,
-        transformPlugins,
+        plugins = [],
+        transformPlugins = [],
         logLevel,
     } = config;
-
-    if (code == null) {
-        throw new Error('Missing required `code` option');
-    }
-
-    if (!code) {
-        return { code: '', map: '', warnings: [] };
-    }
 
     const finalPlugins = await Promise.all([
         import('@chialab/esbuild-plugin-env')
@@ -56,25 +42,18 @@ export async function transform(config) {
                 optionalDependencies: false,
             })),
         ...plugins,
+        ...extraPlugins,
         import('@chialab/esbuild-plugin-transform')
             .then(async ({ default: plugin }) =>
                 plugin([
                     ...transformPlugins,
+                    ...extraTransformPlugins,
                 ])
             ),
     ]);
 
-    const sourceFile = path.resolve(root, Array.isArray(input) ? input[0] : input);
-    const { outputFiles, warnings } = await esbuild.build({
-        stdin: {
-            contents: code,
-            loader,
-            resolveDir: root,
-            sourcefile: sourceFile,
-        },
-        write: false,
+    return {
         bundle: false,
-        globalName,
         target,
         platform,
         sourcemap,
@@ -86,9 +65,47 @@ export async function transform(config) {
         loader: transformLoaders,
         preserveSymlinks: true,
         sourcesContent: true,
-        absWorkingDir: path.dirname(sourceFile),
+        absWorkingDir: path.resolve(root),
         plugins: finalPlugins,
         logLevel,
+    };
+}
+
+/**
+ * Build and bundle sources.
+ * @param {import('@chialab/rna-config-loader').EntrypointFinalConfig} config
+ * @return {Promise<TransformResult>} The esbuild bundle result.
+ */
+export async function transform(config) {
+    const { default: esbuild } = await import('esbuild');
+
+    const {
+        input,
+        code,
+        root,
+        loader,
+        globalName,
+    } = config;
+
+    if (code == null) {
+        throw new Error('Missing required `code` option');
+    }
+
+    if (!code) {
+        return { code: '', map: '', warnings: [] };
+    }
+
+    const sourceFile = path.resolve(root, Array.isArray(input) ? input[0] : input);
+    const { outputFiles, warnings } = await esbuild.build({
+        ...(await createTransformOptions(config)),
+        stdin: {
+            contents: code,
+            loader,
+            resolveDir: root,
+            sourcefile: sourceFile,
+        },
+        globalName,
+        write: false,
     });
 
     if (!outputFiles) {

@@ -1,8 +1,8 @@
 {
-  "name": "@chialab/cjs-to-esm",
+  "name": "@chialab/esbuild-plugin-node-resolve",
   "type": "module",
   "version": "0.12.0",
-  "description": "A commonjs to esm converter.",
+  "description": "Resolve and rewrite dependencies urls using the node resolution algorithm.",
   "main": "lib/index.js",
   "typings": "./types/index.d.ts",
   "author": "Chialab <dev@chialab.io> (https://www.chialab.it)",
@@ -10,12 +10,9 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/chialab/rna",
-    "directory": "packages/cjs-to-esm"
+    "directory": "packages/esbuild-plugin-node-resolve"
   },
-  "keywords": [
-    "commonjs",
-    "esm"
-  ],
+  "keywords": [],
   "scripts": {
     "types": "tsc",
     "prepack": "yarn types"
@@ -31,9 +28,10 @@
     "node": ">=13"
   },
   "dependencies": {
-    "@chialab/estransform": "^0.12.0"
+    "@chialab/node-resolve": "^0.12.0"
   },
   "devDependencies": {
+    "esbuild": "^0.13.0",
     "typescript": "^4.3.0"
   }
 }

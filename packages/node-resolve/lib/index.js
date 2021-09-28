@@ -3,6 +3,10 @@ import nodeResolve from 'enhanced-resolve';
 import isCore from 'is-core-module';
 
 /**
+ * @typedef {(specifier: string, importer: string) => Promise<string|null>} Resolver
+ */
+
+/**
  * @typedef {Object} ResolveOptions
  * @property {string[]} [extensions]
  * @property {string[]} [exportsFields]
@@ -23,8 +27,7 @@ export function createResolver(options = {}) {
     });
 
     /**
-     * @param {string} specifier
-     * @param {string} importer
+     * @type {Resolver}
      */
     const resolve = async function(specifier, importer) {
         const { path, searchParams } = getSearchParams(specifier);
@@ -42,7 +45,7 @@ export function createResolver(options = {}) {
         );
 
         if (!resolved) {
-            return resolved;
+            return /** @type {string} */ (resolved);
         }
 
         return `${resolved}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;

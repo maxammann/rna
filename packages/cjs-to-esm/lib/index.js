@@ -1,4 +1,4 @@
-import { inlineSourcemap, transform as esTransform, walk, getOffsetFromLocation } from '@chialab/estransform';
+import { inlineSourcemap, transform as esTransform, walk, getOffsetFromLocation, parseEsm, parseCommonjs } from '@chialab/estransform';
 
 export const REQUIRE_REGEX = /([^.\w$]|^)require\s*\((['"])(.*?)\2\)/g;
 export const UMD_REGEXES = [
@@ -10,41 +10,6 @@ export const UMD_GLOBALS_REGEXES = UMD_GLOBALS.map((varName) => new RegExp(`\\bt
 export const ESM_KEYWORDS = /((?:^\s*|;\s*)(\bimport\s*(\{.*?\}\s*from|\s[\w$]+\s+from|\*\s*as\s+[^\s]+\s+from)?\s*['"])|((?:^\s*|;\s*)export(\s+(default|const|var|let|function|class)[^\w$]|\s*\{)))/m;
 export const CJS_KEYWORDS = /\b(module\.exports|exports|require)\b/;
 export const THIS_PARAM = /(}\s*\()this(,|\))/g;
-
-/**
- * @type {Promise<typeof import('cjs-module-lexer')>}
- */
-let initializeCjs;
-
-/**
- * @param {string} code
- */
-export async function parseCommonjs(code) {
-    initializeCjs = initializeCjs || import('cjs-module-lexer')
-        .then(({ init, parse }) =>
-            init()
-                .then(() => ({ init, parse }))
-        );
-    const { parse } = await initializeCjs;
-    return parse(code);
-}
-
-/**
- * @type {Promise<typeof import('es-module-lexer')>}
- */
-let initializeEsm;
-
-/**
- * @param {string} code
- */
-export async function parseEsm(code) {
-    initializeEsm = initializeEsm || import('es-module-lexer')
-        .then(({ init, parse }) =>
-            init.then(() => ({ init, parse }))
-        );
-    const { parse } = await initializeEsm;
-    return parse(code);
-}
 
 export const REQUIRE_FUNCTION = '$$cjs_default$$';
 

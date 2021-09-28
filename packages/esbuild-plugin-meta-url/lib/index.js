@@ -154,6 +154,10 @@ export default function({ resolve = defaultResolve } = {}) {
 
                             promises.push((async () => {
                                 const resolvedPath = await resolve(value, args.path);
+                                if (!resolvedPath) {
+                                    return;
+                                }
+
                                 const startOffset = getOffsetFromLocation(code, node.loc.start);
                                 const endOffset = getOffsetFromLocation(code, node.loc.end);
                                 if (!ids[resolvedPath]) {
