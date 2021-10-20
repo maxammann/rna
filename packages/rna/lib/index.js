@@ -48,6 +48,7 @@ ${colors.white(`yarn add -D ${colors.blue(source)}`)}
         loadCommand('test:browser', '@chialab/rna-browser-test-runner'),
         loadCommand('test:node', '@chialab/rna-node-test-runner'),
         loadCommand('test:saucelabs', '@chialab/rna-saucelabs-test-runner'),
+        loadCommand('test:ginsenghino', '@chialab/ginsenghino-runner'),
         loadCommand('apidoc', '@chialab/rna-apidoc'),
     ]);
 

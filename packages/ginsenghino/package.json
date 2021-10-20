@@ -1,0 +1,53 @@
+{
+  "name": "@chialab/ginsenghino",
+  "type": "module",
+  "version": "0.12.0",
+  "description": "A test library based on chai.",
+  "main": "lib/cjs/ginsenghino.js",
+  "module": "lib/esm/ginsenghino.js",
+  "typings": "./types/index.d.ts",
+  "author": "Chialab <dev@chialab.io> (https://www.chialab.it)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chialab/rna",
+    "directory": "packages/ginsenghino"
+  },
+  "keywords": [],
+  "scripts": {
+    "build": "yarn build:esm && yarn build:cjs",
+    "build:esm": "rna build src/index.js --output lib/esm/ginsenghino.js --format esm --minify --platform browser",
+    "build:cjs": "rna build src/index.js --output lib/cjs/ginsenghino.js --format cjs --minify --platform node",
+    "types": "tsc",
+    "prepack": "yarn types && yarn build"
+  },
+  "files": [
+    "lib",
+    "types",
+    "modules.d.ts",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=13"
+  },
+  "browser": {
+    "@testing-library/dom": "@testing-library/dom/dist/@testing-library/dom.umd.js"
+  },
+  "dependencies": {
+    "mocha": "^9.1.3",
+    "@types/chai": "^4.2.22",
+    "@types/chai-dom": "^0.0.11",
+    "@types/sinon-chai": "^3.2.5"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^8.10.1",
+    "@testing-library/user-event": "^13.5.0",
+    "axe-core": "^4.3.3",
+    "chai": "^4.3.4",
+    "chai-dom": "^1.10.0",
+    "sinon-chai": "^3.7.0",
+    "typescript": "^4.3.0"
+  }
+}
