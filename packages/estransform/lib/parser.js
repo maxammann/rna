@@ -1,77 +1,78 @@
-import { Parser as AcornParser } from 'acorn';
-import jsx from 'acorn-jsx';
-import { base, simple } from 'acorn-walk';
-import { extend } from 'acorn-jsx-walk';
-
-extend(base);
+import { parse as swcParse } from '@swc/core';
+import { Visitor as swcVisitor } from '@swc/core/Visitor.js';
 
 /**
- * @typedef {Object} Location
- * @property {number} line
- * @property {number} column
+ * @typedef {{ [ K in keyof swcVisitor ]: K extends `visit${infer V}` ? V : never }[keyof swcVisitor]} VisitorKeys
  */
 
 /**
- * The Acorn parser used to generate AST.
+ * @typedef {{ [key in VisitorKeys]?: (node: Parameters<swcVisitor[`visit${key}`]>[0]) => ReturnType<swcVisitor[`visit${key}`]> | void }} Visitor
  */
-export const Parser = AcornParser.extend(/** @type {*} */(jsx()));
 
 /**
  * Walk through the AST of a JavaScript source.
+ * @param {import('./types.js').Node} node
+ * @param {Visitor} visitor
  */
-export const walk = simple;
+export const walk = (node, visitor) => {
+    const v = new swcVisitor();
+    const type = /** @type {'Program'} */ (node.type);
+    const keys = /** @type {VisitorKeys[]} */ (Object.keys(visitor));
+
+    // Fix missing method in swc
+    v.visitTsType = (node) => node;
+
+    keys.forEach((nodeType) => {
+        if (!visitor[nodeType]) {
+            return;
+        }
+        const callback = /** @type {swcVisitor['visitProgram']} */ (visitor[nodeType]);
+        const methodKey = /** @type {'visitProgram'} */ (`visit${nodeType}`);
+        const original = v[methodKey];
+
+        /**
+         * @param {Parameters<typeof original>[0]} node
+         */
+        v[methodKey] = function(node) {
+            const result = callback.call(this, node);
+            if (result !== undefined) {
+                return result;
+            }
+
+            return original.call(this, node);
+        };
+    });
+
+    return v[`visit${type}`](/** @type {import('./types.js').Program} */ (node));
+};
 
 /**
- * Parse JavaScript code using the Acorn parser.
+ * Parse JavaScript code using the SWC parser.
  * @param {string} code The code to parse.
- * @return {import('acorn').Node} The root AST node.
+ * @return The root AST node.
  */
 export function parse(code) {
-    return Parser.parse(code, {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-        locations: true,
+    return swcParse(code.trimRight(), {
+        syntax: 'typescript',
+        tsx: true,
+        decorators: true,
+        dynamicImport: true,
+        comments: true,
     });
 }
 
 /**
- * Convert a location to byte offset.
- * @param {string} code
- * @param {Location} location
- * @return {number}
+ * @param {import('./types.js').Program} program
+ * @param {import('./types.js').Node & import('@swc/core').HasSpan} node
+ * @return {import('@swc/core').Span}
  */
-export function getOffsetFromLocation(code, { line, column }) {
-    let offest = 0;
+export function getSpan(program, node) {
+    const { span: programSpan } = program;
+    const { span: nodeSpan } = node;
 
-    const lines = code.split('\n');
-    for (let i = 0; i < line; i++) {
-        if (i === line - 1) {
-            offest += column;
-            return offest;
-        }
-        offest += lines[i].length + 1;
-    }
-
-    return -1;
-}
-
-/**
- * Extract a list of JavaScript comments in the given code chunk.
- * @param {string} code
- * @return {string[]} A list of comments.
- */
-export function parseComments(code) {
-    const matches = code.match(/\/\*[\s\S]*?\*\/|(?:[^\\:]|^)\/\/.*$/gm);
-    if (!matches) {
-        return [];
-    }
-
-    return matches.map((comment) =>
-        // remove comment delimiters
-        comment
-            .trim()
-            .replace(/^\/\*+\s*/, '')
-            .replace(/\s*\*+\/$/, '')
-            .replace(/^\/\/\s*/, '')
-    );
+    return {
+        ctxt: nodeSpan.ctxt,
+        start: nodeSpan.start - programSpan.start,
+        end: nodeSpan.end - programSpan.start,
+    };
 }

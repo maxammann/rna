@@ -19,7 +19,7 @@ import { parseSourcemap, loadSourcemap, mergeSourcemaps, inlineSourcemap } from 
 
 /**
  * @typedef {Object} TransformData
- * @property {acorn.Node} ast The acorn node.
+ * @property {import('./types.js').Program} ast The ast program node.
  * @property {MagicString} magicCode The magic code instance.
  * @property {string} code The original source code.
  */
@@ -39,18 +39,10 @@ export async function transform(contents, options, callback) {
      * @type {MagicString|undefined}
      */
     let magicCode;
-    /**
-     * @type {acorn.Node|undefined}
-     */
-    let ast;
+
     return await callback({
         code: contents,
-        get ast() {
-            if (!ast) {
-                ast = parse(contents);
-            }
-            return ast;
-        },
+        ast: await parse(contents),
         get magicCode() {
             if (!magicCode) {
                 magicCode = new MagicString(contents);
@@ -148,26 +140,6 @@ function applyResult(pipeline, { code, map, loader, target }) {
  * @param {TransformCallack} callback
  */
 export async function pipe(pipeline, options, callback) {
-    if (pipeline.target === TARGETS.typescript) {
-        const esbuild = await import('esbuild');
-        const { code: finalCode, map } = await esbuild.transform(pipeline.code, {
-            tsconfigRaw: {},
-            sourcemap: true,
-            format: 'esm',
-            target: TARGETS.es2020,
-            sourcefile: options.source,
-            loader: 'tsx',
-            jsx: 'preserve',
-        });
-
-        applyResult(pipeline, {
-            code: finalCode,
-            map: parseSourcemap(map),
-            target: TARGETS.es2020,
-            loader: 'jsx',
-        });
-    }
-
     const result = await transform(pipeline.code, {
         sourcemap: !!pipeline.sourceMaps,
         ...options,

@@ -1,6 +1,6 @@
 import path from 'path';
 import glob from 'fast-glob';
-import { pipe, walk, getOffsetFromLocation, parseComments } from '@chialab/estransform';
+import { getSpan, pipe, walk } from '@chialab/estransform';
 import { getEntry, finalizeEntry, createFilter, transformError } from '@chialab/esbuild-plugin-transform';
 
 /**
@@ -37,16 +37,20 @@ export default function() {
                         const promises = [];
 
                         walk(data.ast, {
-                            /**
-                             * @param {*} node
-                             */
-                            ImportExpression(node) {
-                                if (node.source.type !== 'TemplateLiteral') {
+                            CallExpression(node) {
+                                if (node.callee.type !== 'Identifier' || node.callee.value !== 'import') {
                                     return;
                                 }
 
-                                const chunk = data.code.substr(node.start, node.end - node.start);
-                                const comments = parseComments(chunk);
+                                const source = node.arguments[0] && node.arguments[0].expression;
+                                if (source.type !== 'TemplateLiteral') {
+                                    return;
+                                }
+
+                                /**
+                                 * @type {string[]}
+                                 */
+                                const comments = (/** @type {*} */(node)).comments;
                                 const included = comments.find((value) => value.startsWith('webpackInclude:'));
                                 if (!included) {
                                     return;
@@ -55,8 +59,8 @@ export default function() {
                                 const excluded = comments.find((value) => value.startsWith('webpackExclude:'));
                                 const include = new RegExp(included.replace('webpackInclude:', '').trim().replace(/^\//, '').replace(/\/$/, ''));
                                 const exclude = excluded && new RegExp(excluded.replace('webpackExclude:', '').trim().replace(/^\//, '').replace(/\/$/, ''));
-                                const initial = node.source.quasis[0].value.raw;
-                                const identifier = node.source.expressions[0].name;
+                                const initial = source.quasis[0].raw.value;
+                                const identifier = source.expressions[0].type === 'Identifier' && source.expressions[0].value;
 
                                 promises.push((async () => {
                                     const map = (await glob(`${initial}*`, {
@@ -68,44 +72,39 @@ export default function() {
                                             return map;
                                         }, /** @type {{ [key: string]: string }} */({}));
 
-                                    const startOffset = getOffsetFromLocation(data.code, node.loc.start);
-                                    const endOffset = getOffsetFromLocation(data.code, node.loc.end);
-                                    data.magicCode.overwrite(
-                                        startOffset,
-                                        endOffset,
-                                        `({ ${Object.keys(map).map((key) => `'${key}': () => import('${map[key]}')`).join(', ')} })[${identifier}]()`
-                                    );
+                                    const { start, end } = getSpan(data.ast, node);
+                                    data.magicCode.overwrite(start, end, `({ ${Object.keys(map).map((key) => `'${key}': () => import('${map[key]}')`).join(', ')} })[${identifier}]()`);
                                 })());
                             },
 
-                            /**
-                             * @param {*} node
-                             */
                             IfStatement(node) {
-                                if (node.test.type !== 'LogicalExpression' ||
-                                    node.test.left.type !== 'LogicalExpression' ||
-                                    node.test.left.left.type !== 'Identifier' ||
-                                    node.test.left.left.name !== 'module' ||
-                                    node.test.left.right.type !== 'MemberExpression' ||
-                                    node.test.left.right.object.type !== 'Identifier' ||
-                                    node.test.left.right.object.name !== 'module' ||
-                                    node.test.left.right.property.type !== 'Identifier' ||
-                                    node.test.left.right.property.name !== 'hot' ||
-                                    node.test.right.type !== 'MemberExpression' ||
-                                    node.test.right.object.type !== 'MemberExpression' ||
-                                    node.test.right.object.object.type !== 'Identifier' ||
-                                    node.test.right.object.object.name !== 'module' ||
-                                    node.test.right.object.property.type !== 'Identifier' ||
-                                    node.test.right.object.property.name !== 'hot' ||
-                                    node.test.right.property.type !== 'Identifier' ||
-                                    node.test.right.property.name !== 'decline'
+                                const testNode = node.test;
+                                if (testNode.type !== 'BinaryExpression') {
+                                    return;
+                                }
+
+                                if (testNode.left.type !== 'BinaryExpression' ||
+                                    testNode.left.left.type !== 'Identifier' ||
+                                    testNode.left.left.value !== 'module' ||
+                                    testNode.left.right.type !== 'MemberExpression' ||
+                                    testNode.left.right.object.type !== 'Identifier' ||
+                                    testNode.left.right.object.value !== 'module' ||
+                                    testNode.left.right.property.type !== 'Identifier' ||
+                                    testNode.left.right.property.value !== 'hot' ||
+                                    testNode.right.type !== 'MemberExpression' ||
+                                    testNode.right.object.type !== 'MemberExpression' ||
+                                    testNode.right.object.object.type !== 'Identifier' ||
+                                    testNode.right.object.object.value !== 'module' ||
+                                    testNode.right.object.property.type !== 'Identifier' ||
+                                    testNode.right.object.property.value !== 'hot' ||
+                                    testNode.right.property.type !== 'Identifier' ||
+                                    testNode.right.property.value !== 'decline'
                                 ) {
                                     return;
                                 }
 
-                                const startOffset = getOffsetFromLocation(data.code, node.loc.start);
-                                const endOffset = getOffsetFromLocation(data.code, node.loc.end);
-                                data.magicCode.overwrite(startOffset, endOffset, '');
+                                const { start, end } = getSpan(data.ast, node);
+                                data.magicCode.overwrite(start, end, '');
                             },
                         });
 

@@ -3,7 +3,7 @@ import { readFile } from 'fs/promises';
 import { resolve as defaultResolve } from '@chialab/node-resolve';
 import emitPlugin, { emitChunk } from '@chialab/esbuild-plugin-emit';
 import { setupPluginDependencies } from '@chialab/esbuild-helpers';
-import { pipe, walk, getOffsetFromLocation, generate } from '@chialab/estransform';
+import { pipe, walk, generate, getSpan } from '@chialab/estransform';
 import { getEntry, finalizeEntry, createFilter, getParentBuild, transformError } from '@chialab/esbuild-plugin-transform';
 import metaUrlPlugin, { getMetaUrl } from '@chialab/esbuild-plugin-meta-url';
 
@@ -77,23 +77,29 @@ export default function({ resolve = defaultResolve, constructors = ['Worker', 'S
                         const promises = [];
 
                         walk(data.ast, {
-                            /**
-                             * @param {*} node
-                             */
                             NewExpression(node) {
-                                let callee = node.callee;
-                                if (callee.type === 'MemberExpression') {
-                                    if (callee.object.name !== 'window' &&
-                                        callee.object.name !== 'self' &&
-                                        callee.object.name !== 'globalThis') {
+                                const callee = node.callee;
+                                const calleeIdentifier = callee.type === 'MemberExpression' ? (() => {
+                                    if (callee.object.type !== 'Identifier') {
                                         return;
                                     }
-                                    callee = callee.property;
-                                }
-                                const Ctr = callee.name;
-                                if (callee.type !== 'Identifier' || !constructors.includes(Ctr)) {
+                                    if (callee.object.value !== 'window' &&
+                                        callee.object.value !== 'self' &&
+                                        callee.object.value !== 'globalThis') {
+                                        return;
+                                    }
+
+                                    return callee.property;
+                                })() : node.callee;
+
+                                if (!calleeIdentifier || calleeIdentifier.type !== 'Identifier') {
                                     return;
                                 }
+
+                                if (!constructors.includes(calleeIdentifier.value)) {
+                                    return;
+                                }
+
                                 if (!node.arguments.length) {
                                     return;
                                 }
@@ -106,7 +112,7 @@ export default function({ resolve = defaultResolve, constructors = ['Worker', 'S
                                     bundle: true,
                                     platform: 'neutral',
                                 };
-                                const options = node.arguments[1];
+                                const options = node.arguments[1] && node.arguments[1].expression;
                                 if (options &&
                                     options.type === 'ObjectExpression' &&
                                     options.properties &&
@@ -128,25 +134,25 @@ export default function({ resolve = defaultResolve, constructors = ['Worker', 'S
                                     transformOptions.plugins = [];
                                 }
 
-                                const startOffset = getOffsetFromLocation(data.code, node.loc.start);
-                                const endOffset = getOffsetFromLocation(data.code, node.loc.end);
-                                const value = getMetaUrl(node.arguments[0], data.ast) || node.arguments[0].value;
-                                if (typeof value !== 'string') {
-                                    if (proxy) {
-                                        const arg = generate(node.arguments[0]);
-                                        data.magicCode.overwrite(startOffset, endOffset, `new ${Ctr}(${createBlobProxy(arg, transformOptions)})`);
-                                    }
-                                    return;
-                                }
-
+                                const firstArg = /** @type {import('@chialab/estransform').StringLiteral|import('@chialab/estransform').NewExpression|import('@chialab/estransform').MemberExpression} */ (node.arguments[0] && node.arguments[0].expression);
+                                const value = firstArg.type === 'StringLiteral' ? firstArg.value : getMetaUrl(firstArg, data.ast);
                                 promises.push(Promise.resolve().then(async () => {
+                                    const { start, end } = getSpan(data.ast, node);
+
+                                    if (typeof value !== 'string') {
+                                        if (proxy) {
+                                            const arg = await generate(firstArg);
+                                            data.magicCode.overwrite(start, end, `new ${calleeIdentifier.value}(${createBlobProxy(arg, transformOptions)})`);
+                                        }
+                                        return;
+                                    }
                                     const resolvedPath = await resolve(value, args.path);
                                     const entryPoint = emitChunk(resolvedPath, transformOptions);
                                     const arg = `new URL('${entryPoint}', import.meta.url).href`;
                                     if (proxy) {
-                                        data.magicCode.overwrite(startOffset, endOffset, `new ${Ctr}(${createBlobProxy(arg, transformOptions)})`);
+                                        data.magicCode.overwrite(start, end, `new ${calleeIdentifier.value}(${createBlobProxy(arg, transformOptions)})`);
                                     } else {
-                                        data.magicCode.overwrite(startOffset, endOffset, `new ${Ctr}(${arg})`);
+                                        data.magicCode.overwrite(start, end, `new ${calleeIdentifier.value}(${arg})`);
                                     }
                                 }));
                             },
@@ -155,7 +161,6 @@ export default function({ resolve = defaultResolve, constructors = ['Worker', 'S
                         await Promise.all(promises);
                     });
                 } catch (error) {
-                    process.exit();
                     throw transformError(this.name, error);
                 }
 

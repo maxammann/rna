@@ -2,7 +2,7 @@ import path from 'path';
 import { resolve as defaultResolve, isUrl } from '@chialab/node-resolve';
 import { setupPluginDependencies } from '@chialab/esbuild-helpers';
 import emitPlugin, { emitFileOrChunk, getBaseUrl, prependImportStatement } from '@chialab/esbuild-plugin-emit';
-import { pipe, walk, getOffsetFromLocation } from '@chialab/estransform';
+import { getSpan, pipe, walk } from '@chialab/estransform';
 import { getEntry, finalizeEntry, createFilter, getParentBuild, transformError } from '@chialab/esbuild-plugin-transform';
 
 /**
@@ -14,12 +14,11 @@ import { getEntry, finalizeEntry, createFilter, getParentBuild, transformError }
  * File could be previously bundled using esbuild, so the first argument of a new URL(something, import.meta.url)
  * is not a literal anymore but an identifier.
  * Here, we are looking for its computed value.
- * @param {*} node The acorn node.
  * @param {string} id The name of the identifier.
- * @param {*} program The ast program.
- * @return {*} The init acorn node.
+ * @param {import('@chialab/estransform').Program} program The ast program.
+ * @return {import('@chialab/estransform').StringLiteral|import('@chialab/estransform').Identifier} The init ast node.
  */
-export function findIdentifierValue(node, id, program) {
+export function findIdentifierValue(id, program) {
     const identifier = program.body
         .filter(
             /**
@@ -47,41 +46,36 @@ export function findIdentifierValue(node, id, program) {
             (child) => child.id && child.id.type === 'Identifier' && child.id.name === id
         );
 
-    if (!identifier || !identifier.init || identifier.init.type !== 'Literal') {
-        return node;
-    }
-
     return identifier.init;
 }
 
 /**
- * @param {*} node The acorn node.
- * @param {*} ast The ast program.
+ * @param {import('@chialab/estransform').NewExpression|import('@chialab/estransform').MemberExpression} node The ast node.
+ * @param {import('@chialab/estransform').Program} ast The ast program.
  * @return The path value.
  */
 export function getMetaUrl(node, ast) {
-    if (node.type === 'MemberExpression') {
-        node = node.object;
-    }
-    if (!node.callee || node.callee.type !== 'Identifier' || node.callee.name !== 'URL') {
+    const callExp = /** @type {import('@chialab/estransform').CallExpression} */ (node.type === 'MemberExpression' ? node.object : node);
+    if (callExp.type !== 'CallExpression' && !callExp.callee || callExp.callee.type !== 'Identifier' || callExp.callee.value !== 'URL') {
         return;
     }
 
-    if (node.arguments.length !== 2) {
+    if (callExp.arguments.length !== 2) {
         return;
     }
 
-    const arg1 = node.arguments[0].type === 'Identifier' ? findIdentifierValue(node, node.arguments[0].name, ast) : node.arguments[0];
-    const arg2 = node.arguments[1];
+    const firstArgExp = callExp.arguments[0] && callExp.arguments[0].expression;
+    const arg1 = firstArgExp.type === 'Identifier' && findIdentifierValue(firstArgExp.value, ast) || firstArgExp;
+    const arg2 = callExp.arguments[1] && callExp.arguments[1].expression;
 
-    if (arg1.type !== 'Literal' ||
+    if (arg1.type !== 'StringLiteral' ||
         arg2.type !== 'MemberExpression') {
         return;
     }
 
     if (arg2.object.type !== 'MetaProperty' ||
         arg2.property.type !== 'Identifier' ||
-        arg2.property.name !== 'url') {
+        arg2.property.value !== 'url') {
         return;
     }
 
@@ -133,9 +127,6 @@ export default function({ resolve = defaultResolve } = {}) {
                         const promises = [];
 
                         walk(data.ast, {
-                            /**
-                             * @param {*} node
-                             */
                             NewExpression(node) {
                                 const value = getMetaUrl(node, data.ast);
                                 if (typeof value !== 'string' || isUrl(value)) {
@@ -144,15 +135,15 @@ export default function({ resolve = defaultResolve } = {}) {
 
                                 promises.push((async () => {
                                     const resolvedPath = await resolve(value, args.path);
-                                    const startOffset = getOffsetFromLocation(data.code, node.loc.start);
-                                    const endOffset = getOffsetFromLocation(data.code, node.loc.end);
                                     if (!ids[resolvedPath]) {
                                         const entryPoint = emitFileOrChunk(build, resolvedPath);
                                         const { identifier } = prependImportStatement(data, entryPoint, value);
                                         ids[resolvedPath] = identifier;
                                     }
 
-                                    data.magicCode.overwrite(startOffset, endOffset, `new URL(${ids[resolvedPath]}, ${getBaseUrl(build)})`);
+                                    const { start, end } = getSpan(data.ast, node);
+                                    console.log(data.ast.span.start, start, data.code.substring(start, end));
+                                    data.magicCode.overwrite(start, end, `new URL(${ids[resolvedPath]}, ${getBaseUrl(build)})`);
                                 })());
                             },
                         });

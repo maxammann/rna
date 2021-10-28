@@ -1,4 +1,4 @@
-import { inlineSourcemap, transform as esTransform, walk, getOffsetFromLocation, parseCommonjs, parseEsm } from '@chialab/estransform';
+import { inlineSourcemap, transform as esTransform, walk, parseCommonjs, parseEsm, getSpan } from '@chialab/estransform';
 
 export const REQUIRE_REGEX = /([^.\w$]|^)require\s*\((['"])(.*?)\2\)/g;
 export const UMD_REGEXES = [
@@ -133,13 +133,13 @@ export async function maybeMixedModule(code) {
 
 /**
  * Check if an expression is a require call.
- * @param {*} node
+ * @param {import('@chialab/estransform').CallExpression} node
  */
 function isRequireCallExpression(node) {
     return node.type === 'CallExpression' &&
         node.callee &&
         node.callee.type === 'Identifier' &&
-        node.callee.name === 'require';
+        node.callee.value === 'require';
 }
 
 /**
@@ -187,14 +187,8 @@ export function createTransform({ ignore = () => false, helperModule = false, ig
 
             if (ignoreTryCatch) {
                 walk(ast, {
-                    /**
-                     * @param {*} node
-                     */
                     TryStatement(node) {
                         walk(node, {
-                            /**
-                             * @param {*} node
-                             */
                             CallExpression(exp) {
                                 if (isRequireCallExpression(exp)) {
                                     ignoredExpressions.push(exp);
@@ -206,21 +200,23 @@ export function createTransform({ ignore = () => false, helperModule = false, ig
             }
 
             walk(ast, {
-                /**
-                 * @param {*} node
-                 */
                 CallExpression(node) {
                     if (!isRequireCallExpression(node) || ignoredExpressions.includes(node)) {
                         return;
                     }
 
-                    if (node.arguments.length !== 1 || node.arguments[0].type !== 'Literal') {
+                    if (node.arguments.length !== 1) {
+                        return;
+                    }
+
+                    const specifierIdentifier = node.arguments[0] && node.arguments[0].expression;
+                    if (!specifierIdentifier || specifierIdentifier.type !== 'StringLiteral') {
                         return;
                     }
 
                     specPromise = specPromise
                         .then(async () => {
-                            const specifier = node.arguments[0].value;
+                            const specifier = specifierIdentifier.value;
                             let spec = specs.get(specifier);
                             if (!spec) {
                                 let id = `$cjs$${specifier.replace(/[^\w_$]+/g, '_')}`;
@@ -239,11 +235,9 @@ export function createTransform({ ignore = () => false, helperModule = false, ig
                             }
 
                             insertHelper = true;
-                            magicCode.overwrite(
-                                getOffsetFromLocation(code, node.loc.start),
-                                getOffsetFromLocation(code, node.loc.end),
-                                `${REQUIRE_FUNCTION}(typeof ${spec.id} !== 'undefined' ? ${spec.id} : {})`
-                            );
+
+                            const { start, end } = getSpan(data.ast, node);
+                            magicCode.overwrite(start, end, `${REQUIRE_FUNCTION}(typeof ${spec.id} !== 'undefined' ? ${spec.id} : {})`);
                         });
                 },
             });
@@ -378,32 +372,28 @@ export async function transform(contents, { source, sourcemap = true, sourcesCon
  * Wrap with a try catch block any require call.
  * @type {import('@chialab/estransform').TransformCallack}
  */
-export const wrapDynamicRequire = ({ ast, code, magicCode }) => {
+export const wrapDynamicRequire = ({ ast, magicCode }) => {
     walk(ast, {
-        /**
-         * @param {*} node
-         */
         IfStatement(node) {
-            if (node.test.type !== 'BinaryExpression' ||
-                node.test.left.type !== 'UnaryExpression' ||
-                node.test.left.operator !== 'typeof' ||
-                node.test.left.argument.type !== 'Identifier' ||
-                node.test.left.argument.name !== 'require' ||
-                !node.test.operator.startsWith('==') ||
-                node.test.right.type !== 'Literal' ||
-                node.test.right.value !== 'function') {
+            const testNode = node.test;
+            if (testNode.type !== 'BinaryExpression') {
                 return;
             }
 
-            magicCode.prependLeft(
-                getOffsetFromLocation(code, node.loc.start),
-                'try {'
-            );
+            if (testNode.type !== 'BinaryExpression' ||
+                testNode.left.type !== 'UnaryExpression' ||
+                testNode.left.operator !== 'typeof' ||
+                testNode.left.argument.type !== 'Identifier' ||
+                testNode.left.argument.value !== 'require' ||
+                !testNode.operator.startsWith('==') ||
+                testNode.right.type !== 'StringLiteral' ||
+                testNode.right.value !== 'function') {
+                return;
+            }
 
-            magicCode.appendRight(
-                getOffsetFromLocation(code, node.loc.end),
-                '} catch(err) {}'
-            );
+            const { start, end } = getSpan(ast, node);
+            magicCode.prependLeft(start, 'try {');
+            magicCode.appendRight(end, '} catch(err) {}');
         },
     });
 };

@@ -1,7 +1,7 @@
 import path from 'path';
 import { readFile } from 'fs/promises';
 import { resolve } from '@chialab/node-resolve';
-import { pipe, walk, getOffsetFromLocation } from '@chialab/estransform';
+import { getSpan, pipe, walk } from '@chialab/estransform';
 import { getEntry, finalizeEntry, createFilter } from '@chialab/esbuild-plugin-transform';
 
 /**
@@ -45,26 +45,27 @@ export default function() {
                     const promises = [];
 
                     walk(data.ast, {
-                        /**
-                         * @param {*} node
-                         */
                         CallExpression(node) {
                             if (!node.callee ||
                                 node.callee.type !== 'MemberExpression' ||
                                 node.callee.object.type !== 'Identifier' ||
-                                node.callee.object.name !== 'require' ||
+                                node.callee.object.value !== 'require' ||
                                 node.callee.property.type !== 'Identifier' ||
-                                node.callee.property.name !== 'resolve') {
+                                node.callee.property.value !== 'resolve') {
                                 return;
                             }
 
-                            if (node.arguments.length !== 1 ||
-                                node.arguments[0].type !== 'Literal') {
+                            if (node.arguments.length !== 1) {
+                                return;
+                            }
+
+                            const specifierExp = node.arguments[0] && node.arguments[0].expression;
+                            if (specifierExp.type !== 'StringLiteral') {
                                 return;
                             }
 
                             promises.push((async () => {
-                                const value = node.arguments[0].value;
+                                const value = specifierExp.value;
                                 const entryPoint = await resolve(value, args.path);
                                 const identifier = `_${value.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
@@ -73,11 +74,9 @@ export default function() {
                                 } else {
                                     data.magicCode.prepend(`var ${identifier} = require('${entryPoint}.requirefile');\n`);
                                 }
-                                data.magicCode.overwrite(
-                                    getOffsetFromLocation(data.code, node.loc.start),
-                                    getOffsetFromLocation(data.code, node.loc.end),
-                                    identifier
-                                );
+
+                                const { start, end } = getSpan(data.ast, node);
+                                data.magicCode.overwrite(start, end, identifier);
                             })());
                         },
                     });
