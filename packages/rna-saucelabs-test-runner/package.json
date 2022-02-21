@@ -38,7 +38,7 @@
     "@chialab/rna-browser-test-runner": "^0.14.20",
     "@chialab/rna-config-loader": "^0.14.17",
     "@chialab/rna-logger": "^0.14.17",
-    "@chialab/wds-plugin-legacy": "^0.14.17",
+    "@chialab/eds-plugin-legacy": "^0.14.17",
     "@web/test-runner-saucelabs": "^0.7.3"
   },
   "devDependencies": {

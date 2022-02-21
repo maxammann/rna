@@ -77,6 +77,9 @@
       "path": "./packages/cjs-to-esm"
     },
     {
+      "path": "./packages/eds-plugin-rna"
+    },
+    {
       "path": "./packages/es-dev-server"
     },
     {
@@ -176,19 +179,13 @@
       "path": "./packages/rna"
     },
     {
-      "path": "./packages/wds-plugin-hmr-css"
-    },
-    {
-      "path": "./packages/wds-plugin-legacy"
+      "path": "./packages/eds-plugin-legacy"
     },
     {
       "path": "./packages/wds-plugin-node-resolve"
     },
     {
       "path": "./packages/wds-plugin-polyfill"
-    },
-    {
-      "path": "./packages/wds-plugin-rna"
     },
     {
       "path": "./packages/wtr-mocha-reporter"

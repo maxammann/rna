@@ -260,7 +260,7 @@ export function command(program) {
                 }
 
                 try {
-                    const { legacyPlugin } = await import('@chialab/wds-plugin-legacy');
+                    const { legacyPlugin } = await import('@chialab/eds-plugin-legacy');
                     plugins.push(legacyPlugin({
                         minify: true,
                     }));

@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-    <a href="https://www.npmjs.com/package/@chialab/wds-plugin-legacy"><img alt="NPM" src="https://img.shields.io/npm/v/@chialab/wds-plugin-legacy.svg?style=flat-square"></a>
+    <a href="https://www.npmjs.com/package/@chialab/eds-plugin-legacy"><img alt="NPM" src="https://img.shields.io/npm/v/@chialab/eds-plugin-legacy.svg?style=flat-square"></a>
 </p>
 
 ---
@@ -11,15 +11,15 @@
 ## Install
 
 ```sh
-$ npm i @chialab/wds-plugin-legacy -D
-$ yarn add @chialab/wds-plugin-legacy -D
+$ npm i @chialab/eds-plugin-legacy -D
+$ yarn add @chialab/eds-plugin-legacy -D
 ```
 
 ## Usage
 
 ```js
 import { startDevServer } from '@web/dev-server';
-import { legacyPlugin } from '@chialab/wds-plugin-legacy';
+import { legacyPlugin } from '@chialab/eds-plugin-legacy';
 
 await startDevServer({
     plugins: [
@@ -34,4 +34,4 @@ This is similar to the [official legacy plugin](https://www.npmjs.com/package/@w
 
 ## License
 
-**Wds Plugin Legacy** is released under the [MIT](https://github.com/chialab/rna/blob/main/packages/wds-plugin-legacy/LICENSE) license.
+**Wds Plugin Legacy** is released under the [MIT](https://github.com/chialab/rna/blob/main/packages/eds-plugin-legacy/LICENSE) license.

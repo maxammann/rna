@@ -136,7 +136,7 @@ export function command(program) {
                  */
                 const config = mergeConfig({ root }, configFile ? await readConfigFile(configFile, { root }, 'serve') : {});
 
-                const { legacyPlugin } = await import('@chialab/wds-plugin-legacy');
+                const { legacyPlugin } = await import('@chialab/eds-plugin-legacy');
 
                 /**
                  * @type {import('@chialab/rna-browser-test-runner').TestRunnerConfig}

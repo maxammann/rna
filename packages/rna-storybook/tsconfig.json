@@ -12,6 +12,9 @@
   ],
   "references": [
     {
+      "path": "../eds-plugin-rna"
+    },
+    {
       "path": "../es-dev-server"
     },
     {
@@ -31,9 +34,6 @@
     },
     {
       "path": "../wds-plugin-node-resolve"
-    },
-    {
-      "path": "../wds-plugin-rna"
     }
   ]
 }

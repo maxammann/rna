@@ -8,7 +8,7 @@ export function createLogger(name = 'rna') {
 
     return {
         /**
-         * @param  {any[]} messages
+         * @param {any[]} messages
          */
         log(...messages) {
             // eslint-disable-next-line no-console
@@ -108,13 +108,6 @@ export function createLogger(name = 'rna') {
         groupEnd() {
             // eslint-disable-next-line no-console
             console.groupEnd();
-        },
-        /**
-         * @param {Error} error
-         */
-        logSyntaxError(error) {
-            // eslint-disable-next-line no-console
-            console.error(error);
         },
     };
 }

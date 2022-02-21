@@ -87,14 +87,14 @@ export async function writeEntrypointsJson(entrypoints, result, rootDir, outputF
  * @param {import('@chialab/rna-config-loader').Format} format The output format.
  */
 export async function writeDevEntrypointsJson(entrypoints, outputFile, server, format) {
-    const { config } = server;
-    const base = `http${config.http2 ? 's' : ''}://${config.hostname ?? 'localhost'}:${config.port}`;
+    const address = server.getAddress();
+    const base = `${address.protcol}://${address.hostname}:${address.port}`;
     const outputDir = path.extname(outputFile) ? path.dirname(outputFile) : outputFile;
-    const webSocketImport = server.webSockets && server.webSockets.webSocketImport && new URL(server.webSockets.webSocketImport, base).href;
+    const webSocketImport = server.getWebSocket().getScriptUrl();
     outputFile = path.extname(outputFile) ? outputFile : path.join(outputDir, 'entrypoints.json');
 
     const entrypointsJson = mapEntrypoints(entrypoints, format, (entrypoint) =>
-        new URL(path.relative(config.rootDir, entrypoint), base).href
+        new URL(path.relative(server.getRoot(), entrypoint), base).href
     );
 
     await rm(outputDir, { recursive: true, force: true });
@@ -103,7 +103,7 @@ export async function writeDevEntrypointsJson(entrypoints, outputFile, server, f
         entrypoints: entrypointsJson,
         server: {
             origin: base,
-            port: config.port,
+            port: address.port,
             inject: [
                 webSocketImport,
             ],

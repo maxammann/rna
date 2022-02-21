@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 /**
  * Cheerio esm support is unstable for some Node versions.
  */
-const load = /** typeof cheerio.load */ (cheerio.load || cheerio.default?.load);
+const load = /** @type {typeof cheerio.load} */ (cheerio.load || cheerio.default?.load);
 
 /**
  * Convert esm modules to the SystemJS module format.
@@ -30,32 +30,24 @@ export function legacyPlugin(config = {}) {
     const inlineScripts = new Map();
 
     /**
-     * @type {import('@web/dev-server-core').Plugin}
+     * @type {import('@chialab/es-dev-server').Plugin}
      */
-    const plugin = {
-        name: 'legacy',
+    const plugin = (server) => {
+        server.app.use(async (req, res, next) => {
+            const pathname = new URL(req.url).pathname;
 
-        transformCacheKey(context) {
-            return checkEsmSupport(context.get('user-agent')) ? undefined : 'legacy';
-        },
+            if (inlineScripts.has(pathname)) {
+                res.send(inlineScripts.get(pathname));
+            }
+            if (pathname === systemHelper) {
+                res.send(await readFile(systemUrl));
+            }
+            if (pathname === regeneratorHelper) {
+                res.send(await readFile(regeneratorUrl));
+            }
 
-        async serve(context) {
-            if (inlineScripts.has(context.path)) {
-                return {
-                    body: /** @type {string} */ (inlineScripts.get(context.path)),
-                };
-            }
-            if (context.path === systemHelper) {
-                return {
-                    body: await readFile(systemUrl),
-                };
-            }
-            if (context.path === regeneratorHelper) {
-                return {
-                    body: await readFile(regeneratorUrl),
-                };
-            }
-        },
+            next();
+        });
 
         async transform(context) {
             const ua = context.get('user-agent');

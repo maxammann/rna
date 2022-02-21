@@ -35,10 +35,10 @@
     "node": ">=13"
   },
   "peerDependencies": {
-    "@chialab/wds-plugin-legacy": "^0.14.0"
+    "@chialab/eds-plugin-legacy": "^0.14.0"
   },
   "peerDependenciesMeta": {
-    "@chialab/wds-plugin-legacy": {
+    "@chialab/eds-plugin-legacy": {
       "optional": true
     }
   },

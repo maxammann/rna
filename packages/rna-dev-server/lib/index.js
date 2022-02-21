@@ -2,42 +2,20 @@ import { stat } from 'fs/promises';
 import path from 'path';
 import { readConfigFile, mergeConfig, locateConfigFile } from '@chialab/rna-config-loader';
 import { createLogger, colors } from '@chialab/rna-logger';
-import { DevServer, getPort, portNumbers } from '@chialab/es-dev-server';
-import cors from '@koa/cors';
-import range from 'koa-range';
+import { DevServer, getPort, portNumbers, Hmr, cors } from '@chialab/es-dev-server';
 import nodeResolvePlugin from '@chialab/wds-plugin-node-resolve';
-import { rnaPlugin, entrypointsPlugin } from '@chialab/wds-plugin-rna';
-import { hmrCssPlugin } from '@chialab/wds-plugin-hmr-css';
-import { hmrPlugin } from './plugins/hmr.js';
-import { watchPlugin } from './plugins/watch.js';
-
-/**
- * @typedef {Object} DevServerCoreConfig
- * @property {import('@chialab/rna-logger').Logger} [logger]
- * @property {import('@chialab/rna-config-loader').Entrypoint[]} [entrypoints]
- * @property {string} [entrypointsPath]
- * @property {import('@chialab/node-resolve').AliasMap} [alias]
- * @property {import('esbuild').Plugin[]} [transformPlugins]
- * @property {string} [jsxFactory]
- * @property {string} [jsxFragment]
- * @property {string} [jsxModule]
- * @property {import('@chialab/rna-config-loader').ExportType} [jsxExport]
- */
-
-/**
- * @typedef {Partial<import('@chialab/es-dev-server').DevServerCoreConfig> & DevServerCoreConfig} DevServerConfig
- */
+import { rnaPlugin, entrypointsPlugin } from '@chialab/eds-plugin-rna';
 
 /**
  * Load configuration for the dev server.
- * @param {Partial<DevServerConfig>} [initialConfig]
+ * @param {Partial<import('@chialab/es-dev-server').DevServer>} [initialConfig]
  * @param {string} [configFile]
- * @return {Promise<DevServerConfig>}
+ * @return {Promise<import('@chialab/es-dev-server').DevServer>}
  */
 export async function loadDevServerConfig(initialConfig = {}, configFile = undefined) {
     configFile = configFile || await locateConfigFile();
 
-    const rootDir = initialConfig.rootDir || process.cwd();
+    const rootDir = initialConfig.root || process.cwd();
     const logger = createLogger();
 
     /**
@@ -51,7 +29,7 @@ export async function loadDevServerConfig(initialConfig = {}, configFile = undef
     const { servePlugins = [], plugins: transformPlugins = [] } = config;
 
     try {
-        const { legacyPlugin } = await import('@chialab/wds-plugin-legacy');
+        const { legacyPlugin } = await import('@chialab/eds-plugin-legacy');
         servePlugins.push(legacyPlugin({
             minify: true,
         }));
@@ -77,11 +55,11 @@ export async function loadDevServerConfig(initialConfig = {}, configFile = undef
 
 /**
  * Create a dev server.
- * @param {DevServerConfig} config
+ * @param {import('@chialab/es-dev-server').DevServer} config
  * @return {Promise<import('@chialab/es-dev-server').DevServer>} The dev server instance.
  */
 export async function createDevServer(config) {
-    const root = config.rootDir ? path.resolve(config.rootDir) : process.cwd();
+    const root = config.root ? path.resolve(config.root) : process.cwd();
     const appIndex = path.join(root, 'index.html');
     let index = false;
     try {
@@ -90,6 +68,7 @@ export async function createDevServer(config) {
         //
     }
     const server = new DevServer({
+        logger: config.logger || createLogger(),
         appIndex: index ? appIndex : undefined,
         ...config,
         injectWebSocket: true,
@@ -103,8 +82,7 @@ export async function createDevServer(config) {
         rootDir: root,
         middleware: [
             cors(),
-            range,
-            ...(config.middleware || []),
+            ...(config.middlewares || []),
         ],
         plugins: [
             ...(config.plugins || []),
@@ -120,45 +98,43 @@ export async function createDevServer(config) {
             nodeResolvePlugin({
                 alias: config.alias,
             }),
-            hmrPlugin(),
-            watchPlugin(),
-            hmrCssPlugin(),
+            Hmr,
         ],
-    }, config.logger || createLogger());
+    });
 
     return server;
 }
 
 /**
- * Use a dev server instance as a koa middleware.
+ * Use a dev server instance as a middleware.
  *
  * @param {import('@chialab/es-dev-server').DevServer} server
- * @return The koa middleware instance for the dev server.
+ * @return The middleware instance for the dev server.
  */
-export function koaMiddleware(server) {
-    return server.koaApp;
+export function middleware(server) {
+    return server.app;
 }
 
 /**
  * Start the dev server.
- * @param {DevServerConfig} config
+ * @param {import('@chialab/es-dev-server').DevServerConfig} config
  * @return {Promise<import('@chialab/es-dev-server').DevServer>} The dev server instance.
  */
 export async function serve(config) {
-    const root = config.rootDir || process.cwd();
+    const root = config.root || process.cwd();
     const server = await createDevServer({
         ...config,
-        rootDir: root,
+        root,
     });
 
-    await server.start();
+    await server.listen();
 
     process.on('uncaughtException', error => {
         config.logger?.error(error);
     });
 
     process.on('SIGINT', async () => {
-        await server.stop();
+        await server.close();
         process.exit(0);
     });
 
@@ -187,7 +163,7 @@ export function command(program) {
              */
             async (root = process.cwd(), { port, config: configFile }) => {
                 const serveConfig = await loadDevServerConfig({
-                    rootDir: root,
+                    root,
                     port,
                 }, configFile);
 
@@ -196,8 +172,8 @@ export function command(program) {
                 serveConfig.logger?.log(`
   ${colors.bold('rna dev server started')}
 
-  root:     ${colors.blue.bold(path.resolve(serveConfig.rootDir || root))}
-  local:    ${colors.blue.bold(`http://${server.config.hostname}:${server.config.port}/`)}
+  root:     ${colors.blue.bold(path.resolve(serveConfig.root || root))}
+  local:    ${colors.blue.bold(`http://${server.getAddress().hostname}:${server.getAddress().port}/`)}
 `);
             }
         );

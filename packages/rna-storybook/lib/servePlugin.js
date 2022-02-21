@@ -3,7 +3,7 @@ import { readFile } from 'fs/promises';
 import esbuild from 'esbuild';
 import { isCss, isJson, isUrl, appendSearchParam } from '@chialab/node-resolve';
 import { getRequestFilePath } from '@chialab/es-dev-server';
-import { appendCssModuleParam, appendJsonModuleParam } from '@chialab/wds-plugin-rna';
+import { appendCssModuleParam, appendJsonModuleParam } from '@chialab/eds-plugin-rna';
 import { indexHtml, iframeHtml, managerCss, previewCss } from './templates.js';
 import { findStories } from './findStories.js';
 import { createManagerScript } from './createManager.js';

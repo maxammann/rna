@@ -36,10 +36,10 @@
     "node": ">=13"
   },
   "peerDependencies": {
-    "@chialab/wds-plugin-legacy": "^0.14.0"
+    "@chialab/eds-plugin-legacy": "^0.14.0"
   },
   "peerDependenciesMeta": {
-    "@chialab/wds-plugin-legacy": {
+    "@chialab/eds-plugin-legacy": {
       "optional": true
     }
   },
@@ -47,9 +47,8 @@
     "@chialab/es-dev-server": "^0.14.17",
     "@chialab/rna-config-loader": "^0.14.17",
     "@chialab/rna-logger": "^0.14.17",
-    "@chialab/wds-plugin-hmr-css": "^0.14.17",
     "@chialab/wds-plugin-node-resolve": "^0.14.17",
-    "@chialab/wds-plugin-rna": "^0.14.20",
+    "@chialab/eds-plugin-rna": "^0.14.20",
     "@web/dev-server-hmr": "^0.1.8"
   },
   "devDependencies": {

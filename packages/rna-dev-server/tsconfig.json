@@ -11,6 +11,9 @@
   ],
   "references": [
     {
+      "path": "../eds-plugin-rna"
+    },
+    {
       "path": "../es-dev-server"
     },
     {
@@ -20,16 +23,10 @@
       "path": "../rna-logger"
     },
     {
-      "path": "../wds-plugin-hmr-css"
-    },
-    {
       "path": "../wds-plugin-node-resolve"
     },
     {
-      "path": "../wds-plugin-rna"
-    },
-    {
-      "path": "../wds-plugin-legacy"
+      "path": "../eds-plugin-legacy"
     }
   ]
 }

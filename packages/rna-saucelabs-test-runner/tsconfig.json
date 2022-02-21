@@ -23,7 +23,7 @@
       "path": "../rna-logger"
     },
     {
-      "path": "../wds-plugin-legacy"
+      "path": "../eds-plugin-legacy"
     }
   ]
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@chialab/wds-plugin-legacy",
+  "name": "@chialab/eds-plugin-legacy",
   "type": "module",
   "version": "0.14.17",
   "description": "Transform esm modules served by the web dev server into SystemJS modules for legacy browser compatibility.",
@@ -10,7 +10,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/chialab/rna",
-    "directory": "packages/wds-plugin-legacy"
+    "directory": "packages/eds-plugin-legacy"
   },
   "keywords": [
     "dev-server",
