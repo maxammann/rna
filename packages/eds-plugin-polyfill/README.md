@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-    <a href="https://www.npmjs.com/package/@chialab/wds-plugin-polyfill"><img alt="NPM" src="https://img.shields.io/npm/v/@chialab/wds-plugin-polyfill.svg?style=flat-square"></a>
+    <a href="https://www.npmjs.com/package/@chialab/eds-plugin-polyfill"><img alt="NPM" src="https://img.shields.io/npm/v/@chialab/eds-plugin-polyfill.svg?style=flat-square"></a>
 </p>
 
 ---
@@ -11,15 +11,15 @@
 ## Install
 
 ```sh
-$ npm i @chialab/wds-plugin-polyfill -D
-$ yarn add @chialab/wds-plugin-polyfill -D
+$ npm i @chialab/eds-plugin-polyfill -D
+$ yarn add @chialab/eds-plugin-polyfill -D
 ```
 
 ## Usage
 
 ```js
 import { startDevServer } from '@web/dev-server';
-import { polyfillPlugin } from '@chialab/wds-plugin-polyfill';
+import { polyfillPlugin } from '@chialab/eds-plugin-polyfill';
 
 await startDevServer({
     plugins: [
@@ -44,4 +44,4 @@ It uses the [polyfill.io](https://github.com/Financial-Times/polyfill-library) l
 
 ## License
 
-**Wds Plugin Polyfill** is released under the [MIT](https://github.com/chialab/rna/blob/main/packages/wds-plugin-polyfill/LICENSE) license.
+**Wds Plugin Polyfill** is released under the [MIT](https://github.com/chialab/rna/blob/main/packages/eds-plugin-polyfill/LICENSE) license.

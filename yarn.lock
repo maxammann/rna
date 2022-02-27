@@ -1070,15 +1070,6 @@
     "@chialab/rna-logger" "^0.12.2"
     commander "^7.2.0"
 
-"@chialab/wds-plugin-node-resolve@^0.14.17":
-  version "0.14.17"
-  resolved "https://registry.npmjs.org/@chialab/wds-plugin-node-resolve/-/wds-plugin-node-resolve-0.14.17.tgz#07faa3ccdfc2de4bb7be8bbb71279c742b40897f"
-  integrity sha512-YIfssg4FDkyLlXn4Yj/Q8KA5aoEzDnq00bzFy4fpKi2eN5DlDXjxr30GWCptw2H/zHoONjZsBUbaSeQbjGDVNg==
-  dependencies:
-    "@chialab/estransform" "^0.14.17"
-    "@chialab/node-resolve" "^0.14.17"
-    "@web/dev-server-core" "^0.3.8"
-
 "@custom-elements-manifest/analyzer@0.5.3":
   version "0.5.3"
   resolved "https://registry.npmjs.org/@custom-elements-manifest/analyzer/-/analyzer-0.5.3.tgz#f3a7921e3f73fed328980164afa0f7687e1137c9"
@@ -3051,7 +3042,7 @@
   dependencies:
     semver "^7.3.4"
 
-"@web/dev-server-core@^0.3.0", "@web/dev-server-core@^0.3.16", "@web/dev-server-core@^0.3.8":
+"@web/dev-server-core@^0.3.0", "@web/dev-server-core@^0.3.16":
   version "0.3.17"
   resolved "https://registry.npmjs.org/@web/dev-server-core/-/dev-server-core-0.3.17.tgz#95e87681b63644a955e29e13ffc6b48fd2c51264"
   integrity sha512-vN1dwQ8yDHGiAvCeUo9xFfjo+pFl8TW+pON7k9kfhbegrrB8CKhJDUxmHbZsyQUmjf/iX57/LhuWj1xGhRL8AA==
@@ -8146,6 +8137,11 @@ koa-compose@^4.1.0:
   version "4.1.0"
   resolved "https://registry.npmjs.org/koa-compose/-/koa-compose-4.1.0.tgz#507306b9371901db41121c812e923d0d67d3e877"
   integrity sha512-8ODW8TrDuMYvXRwra/Kh7/rJo9BtOfPc6qO8eAfC80CnCvSjSl0bkRM24X6/XBBEyj0v1nRUQ1LyOy3dbqOWXw==
+
+koa-connect@^2.1.0:
+  version "2.1.0"
+  resolved "https://registry.npmjs.org/koa-connect/-/koa-connect-2.1.0.tgz#16bce0a917c4cb24233aaac83fbc5b83804b4a1c"
+  integrity sha512-O9pcFafHk0oQsBevlbTBlB9co+2RUQJ4zCzu3qJPmGlGoeEZkne+7gWDkecqDPSbCtED6LmhlQladxs6NjOnMQ==
 
 koa-convert@^2.0.0:
   version "2.0.0"

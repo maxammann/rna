@@ -15,36 +15,41 @@ const DEFAULT_FEATURES = {
 /**
  * Inject polyfill loader into another plugin.
  * This is useful in combination with the dev server legacy plugin.
- * @param {import('@web/dev-server-core').Plugin} plugin
  * @param {Config} config
+ * @return {import('express').RequestHandler}
  */
-export function inject(plugin, config) {
-    const originalTransform = plugin.transform;
-    plugin.transform = async function transform(context) {
-        if (originalTransform) {
-            await originalTransform.call(this, context);
+export function polyfillMiddleware(config) {
+    return async (req, res, next) => {
+        if (res.getHeader('Content-Type') !== 'text/html') {
+            return next();
         }
-        if (!context.response.is('html')) {
-            return;
-        }
+
         const features = config.features || DEFAULT_FEATURES;
         if (!Object.keys(features).length) {
+            return next();
+        }
+
+        const ua = req.headers['user-agent'];
+        if (!ua) {
             return;
         }
+
         const consolePolyfill = 'console.log=console.log.bind(console);';
         const code = await polyfillLibrary.getPolyfillString({
-            uaString: context.get('user-agent'),
+            uaString: ua,
             ...config,
             features,
         });
-        const body = /** @type {string} */ (context.body);
+        const body = /** @type {string} */ (res.body);
         if (body.includes('<head>')) {
-            context.body = body.replace('<head>', () => `<head><script>${consolePolyfill}${code}</script>`);
+            res.body = body.replace('<head>', () => `<head><script>${consolePolyfill}${code}</script>`);
         } else if (body.includes('<body>')) {
-            context.body = body.replace('<body>', () => `<body><script>${consolePolyfill}${code}</script>`);
+            res.body = body.replace('<body>', () => `<body><script>${consolePolyfill}${code}</script>`);
         } else {
-            context.body = `<script>${consolePolyfill}${code}</script>${body}`;
+            res.body = `<script>${consolePolyfill}${code}</script>${body}`;
         }
+
+        return next();
     };
 }
 
@@ -53,12 +58,11 @@ export function inject(plugin, config) {
  */
 export function polyfillPlugin(config = {}) {
     /**
-     * @type {import('@web/dev-server-core').Plugin}
+     * @type {import('@chialab/es-dev-server').Plugin}
      */
-    const plugin = {
-        name: 'polyfill',
+    const plugin = (server) => {
+        server.app.use(polyfillMiddleware(config));
     };
-    inject(plugin, config);
 
     return plugin;
 }

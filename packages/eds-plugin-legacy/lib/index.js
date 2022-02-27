@@ -1,5 +1,5 @@
 import { createRequire } from 'module';
-import { inject } from '@chialab/wds-plugin-polyfill';
+import { polyfillMiddleware } from '@chialab/eds-plugin-polyfill';
 import { createHelperUrl } from '@chialab/wds-plugin-node-resolve';
 import { checkEsmSupport } from './checkEsmSupport.js';
 import { readFile } from './readFile.js';
@@ -16,7 +16,7 @@ const load = /** @type {typeof cheerio.load} */ (cheerio.load || cheerio.default
 /**
  * Convert esm modules to the SystemJS module format.
  * It also transpiles source code using babel.
- * @param {import('@chialab/wds-plugin-polyfill').Config} config
+ * @param {import('@chialab/eds-plugin-polyfill').Config} config
  */
 export function legacyPlugin(config = {}) {
     const systemUrl = require.resolve('systemjs/dist/s.min.js');
@@ -33,6 +33,8 @@ export function legacyPlugin(config = {}) {
      * @type {import('@chialab/es-dev-server').Plugin}
      */
     const plugin = (server) => {
+        server.app.use(polyfillMiddleware(config));
+
         server.app.use(async (req, res, next) => {
             const pathname = new URL(req.url).pathname;
 
@@ -49,22 +51,28 @@ export function legacyPlugin(config = {}) {
             next();
         });
 
-        async transform(context) {
-            const ua = context.get('user-agent');
-            if (checkEsmSupport(ua)) {
-                return;
+        server.app.use(async (req, res, next) => {
+            const ua = req.headers['user-agent'];
+            if (ua && checkEsmSupport(ua)) {
+                return next();
             }
-            if (context.path === systemHelper ||
-                context.path === regeneratorHelper) {
-                return;
+
+            const pathname = new URL(req.url).pathname;
+            if (pathname === systemHelper ||
+                pathname === regeneratorHelper) {
+                return next();
             }
-            if (context.response.is('js')) {
-                const body = /** @type {string} */ (context.body);
-                context.body = await transform(body, context.url);
-                return;
+
+            const contentType = res.getHeader('Content-Type');
+            if (contentType === 'application/javascript' ||
+                contentType === 'text/javascript') {
+                const body = /** @type {string} */ (res.body);
+                res.body = await transform(body, req.url);
+                return next();
             }
-            if (context.response.is('html')) {
-                const body = /** @type {string} */ (context.body);
+
+            if (contentType === 'text/html') {
+                const body = /** @type {string} */ (res.body);
                 const $ = load(body);
                 const root = $.root();
 
@@ -92,18 +100,17 @@ export function legacyPlugin(config = {}) {
                         $script.text(`window.import('${src}');`);
                     }
                 }
-
                 const head = root.find('head') || root.find('body');
                 head.prepend('<script>(function() { var p = Promise.resolve(); window.import = function(source) { return p = p.then(function() { return System.import(source) }); }}());</script>');
                 head.prepend(`<script src="${systemHelper}"></script>`);
                 head.prepend(`<script src="${regeneratorHelper}"></script>`);
 
-                context.body = $.html();
+                res.body = $.html();
             }
-        },
-    };
 
-    inject(plugin, config);
+            return next();
+        });
+    };
 
     return plugin;
 }

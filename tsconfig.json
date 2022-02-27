@@ -182,10 +182,7 @@
       "path": "./packages/eds-plugin-legacy"
     },
     {
-      "path": "./packages/wds-plugin-node-resolve"
-    },
-    {
-      "path": "./packages/wds-plugin-polyfill"
+      "path": "./packages/eds-plugin-polyfill"
     },
     {
       "path": "./packages/wtr-mocha-reporter"

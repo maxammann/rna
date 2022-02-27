@@ -30,9 +30,6 @@
     },
     {
       "path": "../rna-config-loader"
-    },
-    {
-      "path": "../wds-plugin-node-resolve"
     }
   ]
 }

@@ -10,5 +10,9 @@
     "lib/**/*",
     "modules.d.ts"
   ],
-  "references": []
+  "references": [
+    {
+      "path": "../es-dev-server"
+    }
+  ]
 }

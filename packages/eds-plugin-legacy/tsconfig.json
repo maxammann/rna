@@ -12,10 +12,10 @@
   ],
   "references": [
     {
-      "path": "../wds-plugin-node-resolve"
+      "path": "../es-dev-server"
     },
     {
-      "path": "../wds-plugin-polyfill"
+      "path": "../eds-plugin-polyfill"
     }
   ]
 }
